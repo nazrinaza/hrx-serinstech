@@ -60,6 +60,17 @@ class DatabaseSeeder extends Seeder
         $this->employee('E004', 'Lim Wei Jie', null, $ops, $tech, 'male', '1999-11-05', 'single', true, 0, '2025-08-18', 2900, $raj);
         $this->employee('E005', 'Budi Santoso', null, $ops, $tech, 'male', '1990-07-07', 'married', true, 0, '2026-10-12', 2200, $raj, 'foreigner');
 
+        \App\Models\Memo::create([
+            'title' => 'Year-end closure: 24 Dec – 1 Jan', 'priority' => 'important', 'is_pinned' => true,
+            'body' => "The office will close from 24 December to 1 January.\nPlease apply for annual leave for the working days in between before 15 December.\n\nThank you,\nHR",
+            'publish_at' => now()->subDay(), 'created_by' => $hrUser->id,
+        ]);
+        \App\Models\Memo::create([
+            'title' => 'Updated site safety procedure', 'requires_ack' => true, 'department_ids' => [$ops->id],
+            'body' => "All Operations staff must wear the new reflective vests on every site visit from 1 December.\nPlease read and acknowledge.",
+            'publish_at' => now()->subHours(3), 'created_by' => $hrUser->id,
+        ]);
+
         $transport = PayItem::where('name', 'Transport allowance')->first();
         $siti->payItems()->create(['pay_item_id' => $transport->id, 'amount' => 200, 'effective_from' => '2024-02-01']);
         $raj->payItems()->create(['pay_item_id' => PayItem::where('name', 'Fixed allowance')->first()->id, 'amount' => 500, 'effective_from' => '2019-03-01']);

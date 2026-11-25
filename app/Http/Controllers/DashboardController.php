@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\Memo;
+use App\Models\MemoRead;
 use App\Models\PayrollRun;
 use App\Support\CurrentCompany;
 use Illuminate\Http\Request;
@@ -38,6 +40,14 @@ class DashboardController extends Controller
             ->orderBy('start_date')->limit(10)->get();
         $myPending = LeaveRequest::where('approver_id', $user->id)->where('status', 'pending')->count();
 
-        return view('dashboard', compact('stats', 'myEmployee', 'birthdays', 'onLeave', 'myPending', 'isHr'));
+        // Company memos: pinned first, then newest. HR sees every live memo.
+        $memoQuery = ($isHr ? Memo::query() : Memo::visibleTo($myEmployee))->live();
+        $memos = (clone $memoQuery)->with('author')->newestFirst()->limit(5)->get();
+        $memoReads = MemoRead::where('user_id', $user->id)->whereIn('memo_id', $memos->pluck('id'))->get()->keyBy('memo_id');
+        $memosToAck = (clone $memoQuery)->where('requires_ack', true)
+            ->whereDoesntHave('reads', fn ($q) => $q->where('user_id', $user->id)->whereNotNull('acknowledged_at'))
+            ->count();
+
+        return view('dashboard', compact('stats', 'myEmployee', 'birthdays', 'onLeave', 'myPending', 'isHr', 'memos', 'memoReads', 'memosToAck'));
     }
 }

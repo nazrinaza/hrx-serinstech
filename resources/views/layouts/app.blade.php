@@ -7,7 +7,7 @@
     <title>{{ isset($title) ? $title.' · ' : '' }}{{ config('app.name') }}</title>
     <link rel="icon" href="{{ asset('images/logo-light.png') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans antialiased" x-data="{ nav: false }">
@@ -40,7 +40,7 @@
                         @endforeach
                     </select>
                 </form>
-                <span class="hidden sm:inline badge bg-mist text-ink">{{ ucfirst($currentRole) }}</span>
+                <span class="hidden sm:inline badge bg-mist text-ink">{{ $currentRole === 'hr' ? 'HR' : ucfirst($currentRole) }}</span>
             @endisset
 
             <div class="ml-auto" x-data="{ open: false }">

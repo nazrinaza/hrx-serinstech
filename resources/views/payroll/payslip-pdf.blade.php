@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
+    @font-face { font-family: 'Inter'; font-weight: normal; font-style: normal; src: url('{{ resource_path('fonts/Inter-Regular.ttf') }}') format('truetype'); }
+    @font-face { font-family: 'Inter'; font-weight: bold; font-style: normal; src: url('{{ resource_path('fonts/Inter-Bold.ttf') }}') format('truetype'); }
     @page { margin: 28px 34px; }
-    body { font-family: DejaVu Sans, sans-serif; font-size: 10.5px; color: #25343F; }
+    body { font-family: 'Inter', DejaVu Sans, sans-serif; font-size: 10.5px; color: #25343F; }
     .hdr { border-bottom: 3px solid #FF9B51; padding-bottom: 8px; margin-bottom: 12px; }
     .hdr td { vertical-align: top; }
     h1 { font-size: 15px; margin: 0; }

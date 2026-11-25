@@ -7,6 +7,7 @@
 @endphp
 <nav class="p-3 space-y-0.5 overflow-y-auto h-[calc(100vh-4rem)]">
     <a href="{{ route('dashboard') }}" class="{{ $item('dashboard') }}">Dashboard</a>
+    <a href="{{ route('memos.feed') }}" class="{{ $item('memos.feed', 'memos.feed') }}">Company memos</a>
 
     <div class="nav-section">My self service</div>
     <a href="{{ route('me.profile') }}" class="{{ $item('me.profile') }}">My profile</a>
@@ -19,6 +20,7 @@
         <a href="{{ route('employees.index') }}" class="{{ $item('employees.index', 'employees.*') }}">Employees</a>
         <a href="{{ route('leave.index') }}" class="{{ $item('leave.index', 'leave.index') }}">Leave requests</a>
         <a href="{{ route('leave.balances') }}" class="{{ $item('leave.balances') }}">Leave balances</a>
+        <a href="{{ route('memos.index') }}" class="{{ $item('memos.index', 'memos.index') }}">Manage memos</a>
     @endif
 
     @if ($isPayroll)

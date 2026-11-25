@@ -5,6 +5,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\MemoController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SelfServiceController;
@@ -31,6 +32,21 @@ Route::middleware(['auth', 'company'])->group(function () {
         Route::get('/payslips', 'payslips')->name('payslips');
         Route::get('/payslips/{payslip}/pdf', 'payslipPdf')->name('payslips.pdf');
     });
+
+    // Company memos — every signed-in user reads; HR manages
+    Route::get('/memos', [MemoController::class, 'feed'])->name('memos.feed');
+    Route::middleware('role:hr')->group(function () {
+        Route::get('/memos/manage', [MemoController::class, 'index'])->name('memos.index');
+        Route::get('/memos/create', [MemoController::class, 'create'])->name('memos.create');
+        Route::post('/memos', [MemoController::class, 'store'])->name('memos.store');
+        Route::get('/memos/{memo}/edit', [MemoController::class, 'edit'])->name('memos.edit');
+        Route::put('/memos/{memo}', [MemoController::class, 'update'])->name('memos.update');
+        Route::delete('/memos/{memo}', [MemoController::class, 'destroy'])->name('memos.destroy');
+        Route::get('/memos/{memo}/readers', [MemoController::class, 'readers'])->name('memos.readers');
+    });
+    Route::get('/memos/{memo}', [MemoController::class, 'read'])->name('memos.read');
+    Route::post('/memos/{memo}/acknowledge', [MemoController::class, 'acknowledge'])->name('memos.acknowledge');
+    Route::get('/memos/{memo}/attachment', [MemoController::class, 'attachment'])->name('memos.attachment');
 
     // Approvals — whoever is the approver (HR sees all pending)
     Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');

@@ -14,6 +14,32 @@
         </a>
     @endif
 
+    @if ($memosToAck > 0)
+        <a href="{{ route('memos.feed') }}" class="mb-6 flex items-center justify-between rounded-lg border border-ember bg-ember-50 px-5 py-4">
+            <span class="font-semibold">{{ $memosToAck }} memo{{ $memosToAck > 1 ? 's need' : ' needs' }} your acknowledgement.</span>
+            <span class="btn-primary btn-sm">Read</span>
+        </a>
+    @endif
+
+    <section class="mb-6">
+        <div class="mb-3 flex items-center justify-between">
+            <h2>Company memos</h2>
+            <div class="flex gap-2">
+                @if ($isHr)<a href="{{ route('memos.create') }}" class="btn-primary btn-sm">+ New memo</a>@endif
+                <a href="{{ route('memos.feed') }}" class="btn-secondary btn-sm">View all</a>
+            </div>
+        </div>
+        @if ($memos->isEmpty())
+            <div class="card card-body text-sm text-ink/60">No memos right now.@if ($isHr) Post one with “New memo”.@endif</div>
+        @else
+            <div class="grid gap-4 lg:grid-cols-2">
+                @foreach ($memos as $memo)
+                    @include('memos._card', ['memo' => $memo, 'read' => $memoReads->get($memo->id), 'compact' => true])
+                @endforeach
+            </div>
+        @endif
+    </section>
+
     @if ($stats)
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
             @foreach ([
