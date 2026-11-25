@@ -12,7 +12,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'company' => \App\Http\Middleware\EnsureCurrentCompany::class,
+            'role' => \App\Http\Middleware\RequireRole::class,
+        ]);
+        // Resolve the tenant BEFORE route-model binding, so bound models are company-scoped.
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: \App\Http\Middleware\EnsureCurrentCompany::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
