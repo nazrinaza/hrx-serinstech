@@ -55,7 +55,8 @@ The app sends its emails through Resend: leave requests and decisions, memos, an
 
 ## 2. Set the PHP version
 
-cPanel → **MultiPHP Manager** → tick `hr.serinstech.com` (or the main domain) → set **PHP 8.3** → Apply.
+- **EasyApache servers:** cPanel → **MultiPHP Manager** → tick `hr.serinstech.com` → set **PHP 8.3** → Apply.
+- **CloudLinux servers** (PHP lives in `/opt/alt/…`): cPanel → **Select PHP Version** → set the current PHP version to **8.3** → *Set as current*.
 
 Then go to cPanel → **Select PHP Version** → **Extensions** (only if your host shows this page). Make sure these are ticked:
 
@@ -127,6 +128,13 @@ echo 'HRX_PUBLIC="$HOME/public_html/hr.serinstech.com"' > ~/.hrx-deploy.conf
 Then click **Deploy HEAD Commit** again. On every deploy, the script then copies the public files (CSS, JS, images) into that folder and writes an `index.php` there that loads the app from `~/hrx`.
 
 It does **not** delete anything already in the folder, and it keeps cPanel's own `.htaccess` lines, such as the PHP version handler. Laravel's rules are added below them once.
+
+**Remove any placeholder page:** if that folder has an `index.html`, `index.htm` or `default.html` (for example cPanel's "coming soon" page), delete it. Apache serves those before `index.php`. In Terminal:
+
+```bash
+ls -la ~/public_html/hr.serinstech.com
+rm -i ~/public_html/hr.serinstech.com/index.html ~/public_html/hr.serinstech.com/default.html 2>/dev/null
+```
 
 > Don't edit `index.php` in that folder by hand, because each deploy rewrites it. `~/.hrx-deploy.conf` stays on the server and is never in git.
 
@@ -234,6 +242,7 @@ The "HEAD Commit" box shows which commit is live.
 | **Composer "Allowed memory size exhausted"** | Ask your host to raise the PHP CLI `memory_limit` to 512M, or use the zip method below. |
 | **500 error / blank page** | Read `~/hrx/storage/logs/laravel-<date>.log`. The usual causes are a wrong `DB_*` value in `.env`, or forgetting to run `php artisan optimize` again after editing `.env`. |
 | **"Your Composer dependencies require PHP >= 8.3"** | The domain is using an older PHP version. Redo step 2. |
+| **Domain shows an old or "coming soon" page** | Delete `index.html` or `default.html` from the domain's folder (see step 6, option A). |
 | **Page shows no styling / default cPanel page / 404 for everything** | The domain isn't connected to the app. Check step 6: with option A, `~/.hrx-deploy.conf` must exist and point to the domain's folder, and you must deploy again after creating it. |
 | **Can't log in / "Page Expired" (419)** | Open the site with `https://`, not `http://`, and make sure SSL from step 10 is active. |
 | **Emails don't arrive** | Run `php artisan hrx:mail-test you@yourmail.com`. If the test arrives but leave or memo emails don't, the cron job in step 9 isn't running. Also check Resend → **Emails** to see what was sent and why anything bounced. |
