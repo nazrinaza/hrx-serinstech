@@ -20,7 +20,7 @@ GitHub (nazrinaza/hrx-serinstech)
    │  cPanel: "Deploy HEAD Commit"  (runs .cpanel.yml → deploy/cpanel-deploy.sh)
    ▼
 ~/hrx                              ← live app. .env and uploaded files live here.
-   └─ public/                      ← what hr.serinstech.com shows
+   └─ public/  ──(copied on deploy, option A)──▶ ~/public_html/hr.serinstech.com  ← what the domain shows
 ```
 
 Each deploy does the following:
@@ -110,14 +110,29 @@ This creates `~/hrx` and installs the PHP packages, which takes 1–3 minutes th
 
 > **Where's the log?** In File Manager, turn on *Show Hidden Files*, then open `.cpanel/logs/` in your home folder. The newest `vc_…_git_deploy.log` is the latest deploy.
 
-## 6. Point the domain at `hrx/public`
+## 6. Connect the domain
 
-cPanel → **Domains**:
+The code always lives in `~/hrx`, outside `public_html`. How the domain reaches it depends on whether cPanel lets you change its document root.
 
-- **If `hr.serinstech.com` doesn't exist yet:** click *Create A New Domain* → enter `hr.serinstech.com` → untick *Share document root* → set the **Document Root** to `hrx/public` → Submit.
-- **If it already exists:** click **Manage** next to it → change the Document Root to `hrx/public` → Update.
+### Option A: the domain already has a folder in `public_html` (most hosts)
 
-> The code sits **outside** `public_html`. Only the `public` folder is reachable from the web.
+Use this option if, for example, cPanel created `public_html/hr.serinstech.com` for the domain and won't let you change it.
+
+Tell the deploy script where that folder is. In Terminal, run:
+
+```bash
+echo 'HRX_PUBLIC="$HOME/public_html/hr.serinstech.com"' > ~/.hrx-deploy.conf
+```
+
+Then click **Deploy HEAD Commit** again. On every deploy, the script then copies the public files (CSS, JS, images) into that folder and writes an `index.php` there that loads the app from `~/hrx`.
+
+It does **not** delete anything already in the folder, and it keeps cPanel's own `.htaccess` lines, such as the PHP version handler. Laravel's rules are added below them once.
+
+> Don't edit `index.php` in that folder by hand, because each deploy rewrites it. `~/.hrx-deploy.conf` stays on the server and is never in git.
+
+### Option B: you can set the document root yourself
+
+cPanel → **Domains** → `hr.serinstech.com` → **Manage** → set the Document Root to `hrx/public`. No config file is needed with this option.
 
 ## 7. Create `.env`
 
@@ -159,10 +174,10 @@ What each command does:
 cPanel → **Cron Jobs** → *Common Settings:* **Once Per Minute** → Command:
 
 ```
-cd /home/<cpaneluser>/hrx && php artisan schedule:run >> /dev/null 2>&1
+cd $HOME/hrx && /opt/alt/php83/usr/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Replace `<cpaneluser>` with your cPanel username. Use the full PHP path from step 4 if you needed it there.
+Use the same PHP path as in step 4. On EasyApache servers that is `/opt/cpanel/ea-php83/root/usr/bin/php`.
 
 This cron job sends the queued emails (leave requests, leave decisions, memos and set-password links) through Resend.
 
@@ -219,7 +234,7 @@ The "HEAD Commit" box shows which commit is live.
 | **Composer "Allowed memory size exhausted"** | Ask your host to raise the PHP CLI `memory_limit` to 512M, or use the zip method below. |
 | **500 error / blank page** | Read `~/hrx/storage/logs/laravel-<date>.log`. The usual causes are a wrong `DB_*` value in `.env`, or forgetting to run `php artisan optimize` again after editing `.env`. |
 | **"Your Composer dependencies require PHP >= 8.3"** | The domain is using an older PHP version. Redo step 2. |
-| **Page shows no styling** | The document root is not `hrx/public`. Redo step 6. |
+| **Page shows no styling / default cPanel page / 404 for everything** | The domain isn't connected to the app. Check step 6: with option A, `~/.hrx-deploy.conf` must exist and point to the domain's folder, and you must deploy again after creating it. |
 | **Can't log in / "Page Expired" (419)** | Open the site with `https://`, not `http://`, and make sure SSL from step 10 is active. |
 | **Emails don't arrive** | Run `php artisan hrx:mail-test you@yourmail.com`. If the test arrives but leave or memo emails don't, the cron job in step 9 isn't running. Also check Resend → **Emails** to see what was sent and why anything bounced. |
 | **"The serinstech.com domain is not verified"** | The DNS records from step 1 haven't been added yet, or haven't spread yet. Check Resend → Domains. |
