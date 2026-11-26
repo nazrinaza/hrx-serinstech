@@ -36,35 +36,17 @@ php artisan test
 
 ## Deploying to cPanel (hr.serinstech.com)
 
-1. **Database:** in cPanel → *MySQL® Databases*, create a database and a user, and give the user *All privileges* on it.
-2. **Upload code:** use cPanel → *Git™ Version Control* to clone this repo to e.g. `~/hrx` (or upload a zip). Keep it **outside** `public_html`.
-3. **Point the domain at `public/`:** cPanel → *Domains* → `hr.serinstech.com` → set the document root to `/home/<user>/hrx/public`.
-4. **Configure `.env`:** in `~/hrx`, copy `.env.example` to `.env` and set:
-   - `APP_ENV=production`, `APP_DEBUG=false`
-   - the `DB_*` values from step 1
-   - `MAIL_*` for a cPanel mailbox (e.g. `hr@serinstech.com`, host `mail.serinstech.com`, port 465, scheme `smtps`)
+Full step-by-step guide: **[deploy/CPANEL-GUIDE.md](deploy/CPANEL-GUIDE.md)**.
 
-   **Never commit `.env`.**
-5. **Install** (cPanel → *Terminal*, or SSH):
-   ```bash
-   cd ~/hrx
-   composer install --no-dev --optimize-autoloader
-   php artisan key:generate
-   php artisan migrate --force
-   php artisan storage:link
-   php artisan config:cache && php artisan route:cache && php artisan view:cache
-   php artisan hrx:install          # create your super-admin login (asks for name, email, password)
-   ```
-   `public/build` (the compiled CSS/JS) is not in git. Run `npm ci && npm run build` locally and upload `public/build/`, or build in CI.
-6. **Cron:** cPanel → *Cron Jobs* → *Every minute*:
-   ```
-   cd /home/<user>/hrx && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
-   ```
-   This sends the queued emails (leave notices, set-password links).
-7. **SSL:** cPanel → *SSL/TLS Status* → run AutoSSL for `hr.serinstech.com`.
-8. Sign in, create your first company, then add employees.
-
-**Updating later:** `git pull` (or re-upload) → `composer install --no-dev -o` → `php artisan migrate --force` → `php artisan optimize` → upload a fresh `public/build/` if the CSS/JS changed.
+In short:
+0. Verify `serinstech.com` in [Resend](https://resend.com) by adding its DNS records, then create an API key. All email goes out through Resend (`MAIL_MAILER=resend`).
+1. Run `bash deploy/build.sh` on your machine. It creates a zip in `dist/` that already contains `vendor/` and the compiled CSS/JS, so the server needs no Composer or Node.
+2. Upload the zip and extract it outside `public_html`.
+3. Point the domain's document root at `hrx/public`.
+4. Create `.env` from [`deploy/env.production.example`](deploy/env.production.example).
+5. In the cPanel Terminal, run `key:generate`, `migrate --force`, `storage:link`, `optimize` and `hrx:install`. To check email, run `hrx:mail-test you@example.com`.
+6. Add a cron job that runs `schedule:run` every minute.
+7. Turn on AutoSSL.
 
 ## Architecture notes
 
