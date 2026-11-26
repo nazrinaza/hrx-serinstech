@@ -1,28 +1,36 @@
 # Deploying Serinstech HR to cPanel (hr.serinstech.com)
 
-This guide uses the **upload-a-zip** method, so the server needs no Composer and no Node.
-It takes about 30 minutes the first time.
+This guide uses cPanel **Git™ Version Control**. cPanel pulls the code from GitHub, and **Deploy HEAD Commit** copies it to the live site and updates it.
+After the first setup, an update is just: push from your Mac → two clicks in cPanel.
+
+The first setup takes about 30–45 minutes.
 
 **What you need:**
-- a cPanel login;
+- a cPanel login with **Terminal** (or SSH) access;
 - the database name, user and password you want to use;
 - a free [Resend](https://resend.com) account, which sends the app's emails.
 
----
+### How it fits together
 
-## 0. Build the package (on your Mac)
-
-```bash
-cd ~/Desktop/"HR apps"/hrx-serinstech
-bash deploy/build.sh
+```
+GitHub (nazrinaza/hrx-serinstech)
+   │  cPanel: "Update from Remote"
+   ▼
+~/repositories/hrx-serinstech      ← Git copy. Never edit files here.
+   │  cPanel: "Deploy HEAD Commit"  (runs .cpanel.yml → deploy/cpanel-deploy.sh)
+   ▼
+~/hrx                              ← live app. .env and uploaded files live here.
+   └─ public/                      ← what hr.serinstech.com shows
 ```
 
-This creates `dist/hrx-serinstech-<version>.zip` (about 13 MB). The zip contains:
-- the code;
-- the production PHP libraries;
-- the compiled CSS and JS.
+Each deploy does the following:
+1. Puts the site in maintenance mode for a few seconds.
+2. Copies the code into `~/hrx`.
+3. Runs `composer install`.
+4. Updates the database (`migrate`) and the caches.
+5. Brings the site back up.
 
-It never contains `.env`, the local database, or uploaded files.
+It **never** touches `.env`, uploaded files or logs. If a deploy fails, the site still comes back up.
 
 ---
 
@@ -61,49 +69,77 @@ cPanel → **MySQL® Databases**:
 2. **Add New User:** `hrx`, with a strong password. This gives for example `abc123_hrx`.
 3. **Add User To Database:** pick that user and database, then tick **ALL PRIVILEGES**.
 
-Write down the full prefixed names. You need them in step 6.
+Write down the full prefixed names. You need them in step 7.
 
-## 4. Upload and extract
+## 4. Check PHP and Composer in Terminal
 
-cPanel → **File Manager** → go to your **home folder**. This is the folder that contains `public_html`, *not* `public_html` itself.
+Open cPanel → **Terminal** and run:
 
-1. **Upload** the zip.
-2. Right-click the zip → **Extract**. This creates a folder called `hrx`.
-3. Delete the zip.
+```bash
+php -v
+composer -V
+```
 
-You now have `/home/<cpaneluser>/hrx/` with `app`, `public`, `vendor` and the other folders inside.
+- **`php -v` shows 8.3 or newer:** fine, use `php` in the commands below.
+- **`php -v` shows an older version:** use the full path **`/opt/cpanel/ea-php83/root/usr/bin/php`** wherever this guide says `php`, including in the cron job in step 9. Some CloudLinux hosts use `/opt/alt/php83/usr/bin/php` instead.
 
-> The code must sit **outside** `public_html`. Only the `public` folder should be reachable from the web.
+  The deploy script finds PHP 8.3 by itself, so this only matters for the commands you type.
+- **`composer -V` says "command not found":** install Composer into your home folder:
+  ```bash
+  cd ~
+  curl -sS https://getcomposer.org/installer | php
+  ```
+  This creates `~/composer.phar`, and the deploy script will find it automatically.
 
-## 5. Point the domain at `hrx/public`
+## 5. Clone the repository
+
+cPanel → **Git™ Version Control** → **Create**:
+
+- **Clone a Repository:** on.
+- **Clone URL:** `https://github.com/nazrinaza/hrx-serinstech.git`
+- **Repository Path:** `repositories/hrx-serinstech`
+- **Repository Name:** `hrx-serinstech`
+
+Click **Create** and wait for the clone to finish.
+
+> The repository is public, so no GitHub login is needed. If you make it private later, set up an SSH deploy key first: in cPanel → **SSH Access**, generate a key, then add its public part in GitHub → repo → Settings → *Deploy keys*. After that, clone with the `git@github.com:…` URL.
+
+**First deploy:** go to Git™ Version Control → **Manage** (next to `hrx-serinstech`) → **Pull or Deploy** tab → **Deploy HEAD Commit**.
+
+This creates `~/hrx` and installs the PHP packages, which takes 1–3 minutes the first time. Because there is no `.env` yet, it stops there on purpose. The log says *"First deploy: code is in place"*.
+
+> **Where's the log?** In File Manager, turn on *Show Hidden Files*, then open `.cpanel/logs/` in your home folder. The newest `vc_…_git_deploy.log` is the latest deploy.
+
+## 6. Point the domain at `hrx/public`
 
 cPanel → **Domains**:
 
 - **If `hr.serinstech.com` doesn't exist yet:** click *Create A New Domain* → enter `hr.serinstech.com` → untick *Share document root* → set the **Document Root** to `hrx/public` → Submit.
 - **If it already exists:** click **Manage** next to it → change the Document Root to `hrx/public` → Update.
 
-## 6. Create `.env`
+> The code sits **outside** `public_html`. Only the `public` folder is reachable from the web.
 
-1. In File Manager, open `hrx/deploy/`.
-2. Copy `env.production.example` to `hrx/` and rename the copy to **`.env`**. Turn on *Settings → Show Hidden Files* to see it.
-3. Edit `.env` and fill in these values:
-   - `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`: the values from step 3.
-   - `RESEND_API_KEY`: the `re_…` key from step 1.
+## 7. Create `.env`
 
-   If a password contains spaces or `#`, wrap it in double quotes, like this: `DB_PASSWORD="my#pass word"`.
-
-## 7. Run the install commands
-
-Open cPanel → **Terminal**, then:
+In Terminal:
 
 ```bash
 cd ~/hrx
-php -v
+cp deploy/env.production.example .env
 ```
 
-Check the version that `php -v` shows. **If it is not 8.3**, use the full path `/opt/cpanel/ea-php83/root/usr/bin/php` instead of `php` in every command below, and in the cron job in step 8.
+Then open `hrx/.env` in File Manager (turn on *Settings → Show Hidden Files*) → **Edit**, and fill in:
+- `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`: the values from step 3.
+- `RESEND_API_KEY`: the `re_…` key from step 1.
+
+If a password contains spaces or `#`, wrap it in double quotes, like this: `DB_PASSWORD="my#pass word"`.
+
+## 8. Finish the install
+
+In Terminal:
 
 ```bash
+cd ~/hrx
 php artisan key:generate --force
 php artisan migrate --force
 php artisan storage:link
@@ -112,15 +148,13 @@ php artisan hrx:install
 ```
 
 What each command does:
-- `key:generate` creates the encryption key and writes it into `.env`.
+- `key:generate` creates the encryption key and writes it into `.env`. Run it **once only**: running it again later logs everyone out and makes encrypted data unreadable.
 - `migrate` creates all the tables.
 - `storage:link` lets company logos display.
 - `optimize` caches the config, routes and views so pages load faster.
 - `hrx:install` creates **your** super-admin login. It asks for your name, email and a password of at least 12 characters.
 
-> **No Terminal in your cPanel?** Ask your host to enable it, or to enable "SSH access". Enabling one of them is the reliable way to run these commands.
-
-## 8. Cron job (emails)
+## 9. Cron job (emails)
 
 cPanel → **Cron Jobs** → *Common Settings:* **Once Per Minute** → Command:
 
@@ -128,19 +162,19 @@ cPanel → **Cron Jobs** → *Common Settings:* **Once Per Minute** → Command:
 cd /home/<cpaneluser>/hrx && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Replace `<cpaneluser>` with your cPanel username. Use the full PHP path from step 7 if you needed it there.
+Replace `<cpaneluser>` with your cPanel username. Use the full PHP path from step 4 if you needed it there.
 
 This cron job sends the queued emails (leave requests, leave decisions, memos and set-password links) through Resend.
 
-## 9. SSL
+## 10. SSL
 
 cPanel → **SSL/TLS Status** → tick `hr.serinstech.com` → **Run AutoSSL**.
 
 Wait until it shows a valid certificate. The app requires HTTPS, because its login cookies are marked secure.
 
-## 10. First sign-in
+## 11. First sign-in
 
-1. Open **https://hr.serinstech.com** and sign in with the super-admin login from step 7.
+1. Open **https://hr.serinstech.com** and sign in with the super-admin login from step 8.
 2. **Companies → New company:** add Serinstech, including its EPF, SOCSO, LHDN and HRDF numbers.
 3. **Setup:** check the departments, positions, public holidays, leave types and pay items.
 4. **Employees:** add employees one by one or import them from CSV. Then click **Create login** for each employee who should use self-service.
@@ -155,27 +189,53 @@ Wait until it shows a valid certificate. The app requires HTTPS, because its log
 
 ## Updating later
 
-1. On your Mac, run `bash deploy/build.sh`.
-2. Upload the new zip to your home folder and extract it over the existing `hrx` folder (choose overwrite). `.env` and the uploaded files are not inside the zip, so they stay untouched.
-3. In Terminal, run:
-   ```bash
-   cd ~/hrx
-   php artisan migrate --force
-   php artisan optimize
-   ```
+**On your Mac:**
+
+```bash
+cd ~/Desktop/"HR apps"/hrx-serinstech
+npm run build
+git add -A
+git commit -m "Describe the change"
+git push
+```
+
+Only run `npm run build` if you changed CSS, JS or Blade views. The compiled files in `public/build` are committed to git, so the server never needs Node.
+
+**In cPanel:**
+1. Go to Git™ Version Control → **Manage** → **Pull or Deploy**.
+2. Click **Update from Remote**. This pulls the new commits from GitHub.
+3. Click **Deploy HEAD Commit**. The site goes into maintenance for a few seconds, updates, and comes back up.
+
+The "HEAD Commit" box shows which commit is live.
 
 ## Troubleshooting
 
 | What you see | Fix |
 |---|---|
-| **500 error / blank page** | Read `hrx/storage/logs/laravel-<date>.log`. The usual causes are a wrong `DB_*` value in `.env`, or forgetting to run `php artisan optimize` again after editing `.env`. |
-| **"Your Composer dependencies require PHP >= 8.3"** | The domain or terminal is using an older PHP version. Redo step 2, or use the full `ea-php83` path. |
-| **Page shows no styling** | The document root is not `hrx/public`. Redo step 5. |
-| **Can't log in / "Page Expired" (419)** | Open the site with `https://`, not `http://`, and make sure SSL from step 9 is active. |
-| **Emails don't arrive** | Run `php artisan hrx:mail-test you@yourmail.com`. If the test arrives but leave or memo emails don't, the cron job in step 8 isn't running. Also check Resend → **Emails** to see what was sent and why anything bounced. |
+| **Deploy button is greyed out** | The Git copy in `~/repositories/hrx-serinstech` has local changes. Never edit files there. In Terminal, run `cd ~/repositories/hrx-serinstech && git status`. To throw local changes away, run `git checkout -- . && git clean -fd`. |
+| **Deploy did nothing / not sure if it worked** | Read the newest `~/.cpanel/logs/vc_…_git_deploy.log`. It should end with `[hrx-deploy] Done: …`. |
+| **"PHP 8.3 or newer not found"** (deploy log) | Find your PHP 8.3 path with `ls /opt/cpanel/ /opt/alt/`. Then edit `.cpanel.yml` (on your Mac, then commit and push) so the task line reads `- HRX_PHP=/path/to/php /bin/bash deploy/cpanel-deploy.sh`. |
+| **"Composer not found"** (deploy log) | Redo step 4. |
+| **Composer "Allowed memory size exhausted"** | Ask your host to raise the PHP CLI `memory_limit` to 512M, or use the zip method below. |
+| **500 error / blank page** | Read `~/hrx/storage/logs/laravel-<date>.log`. The usual causes are a wrong `DB_*` value in `.env`, or forgetting to run `php artisan optimize` again after editing `.env`. |
+| **"Your Composer dependencies require PHP >= 8.3"** | The domain is using an older PHP version. Redo step 2. |
+| **Page shows no styling** | The document root is not `hrx/public`. Redo step 6. |
+| **Can't log in / "Page Expired" (419)** | Open the site with `https://`, not `http://`, and make sure SSL from step 10 is active. |
+| **Emails don't arrive** | Run `php artisan hrx:mail-test you@yourmail.com`. If the test arrives but leave or memo emails don't, the cron job in step 9 isn't running. Also check Resend → **Emails** to see what was sent and why anything bounced. |
 | **"The serinstech.com domain is not verified"** | The DNS records from step 1 haven't been added yet, or haven't spread yet. Check Resend → Domains. |
 | **"API key is invalid"** | Check `RESEND_API_KEY` in `.env`, then run `php artisan optimize` again. |
+| **Site stuck on "Service Unavailable" (503)** | A deploy was interrupted while in maintenance mode. Run `cd ~/hrx && php artisan up`. |
 | **Changed `.env` but nothing changed** | Run `php artisan optimize` again. The config is cached. |
+
+## Alternative: upload a zip (no Git or Composer on the server)
+
+Use this only if your host has no Git™ Version Control or no Composer.
+
+1. On your Mac, run `bash deploy/build.sh`. This creates `dist/hrx-serinstech-<version>.zip`, which already contains the PHP packages.
+2. In File Manager, upload the zip to your home folder → **Extract**. This creates or updates `~/hrx`.
+3. Continue from step 6 above.
+
+**To update later:** extract a new zip over `~/hrx` (choose overwrite), then run `cd ~/hrx && php artisan migrate --force && php artisan optimize`.
 
 ## Before running live payroll
 

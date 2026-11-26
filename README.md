@@ -39,14 +39,27 @@ php artisan test
 Full step-by-step guide: **[deploy/CPANEL-GUIDE.md](deploy/CPANEL-GUIDE.md)**.
 
 In short:
-0. Verify `serinstech.com` in [Resend](https://resend.com) by adding its DNS records, then create an API key. All email goes out through Resend (`MAIL_MAILER=resend`).
-1. Run `bash deploy/build.sh` on your machine. It creates a zip in `dist/` that already contains `vendor/` and the compiled CSS/JS, so the server needs no Composer or Node.
-2. Upload the zip and extract it outside `public_html`.
-3. Point the domain's document root at `hrx/public`.
-4. Create `.env` from [`deploy/env.production.example`](deploy/env.production.example).
-5. In the cPanel Terminal, run `key:generate`, `migrate --force`, `storage:link`, `optimize` and `hrx:install`. To check email, run `hrx:mail-test you@example.com`.
-6. Add a cron job that runs `schedule:run` every minute.
-7. Turn on AutoSSL.
+1. Verify `serinstech.com` in [Resend](https://resend.com) by adding its DNS records, then create an API key. All email goes out through Resend (`MAIL_MAILER=resend`).
+2. In cPanel:
+   - set PHP to 8.3;
+   - create the MySQL database;
+   - check that Composer works in Terminal.
+3. In cPanel → **Git™ Version Control**, clone this repo to `~/repositories/hrx-serinstech`, then click **Deploy HEAD Commit**. [`.cpanel.yml`](.cpanel.yml) runs [`deploy/cpanel-deploy.sh`](deploy/cpanel-deploy.sh), which:
+   - copies the code to `~/hrx`;
+   - runs `composer install --no-dev`;
+   - runs `migrate` and `optimize`.
+
+   It never touches `.env` or uploaded files.
+4. Point `hr.serinstech.com` at `hrx/public` and create `~/hrx/.env` from [`deploy/env.production.example`](deploy/env.production.example).
+5. In Terminal, run `key:generate`, `migrate --force`, `storage:link`, `optimize` and `hrx:install`. To check email, run `hrx:mail-test you@example.com`.
+6. Add a cron job that runs `schedule:run` every minute, then turn on AutoSSL.
+
+**Updating:**
+1. Run `npm run build` (only if CSS, JS or views changed).
+2. Commit and push.
+3. In cPanel: **Update from Remote** → **Deploy HEAD Commit**.
+
+`public/build/` is committed on purpose, so the server never needs Node.
 
 ## Architecture notes
 

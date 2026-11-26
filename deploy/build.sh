@@ -26,7 +26,7 @@ composer install --working-dir="$STAGE" --no-dev --optimize-autoloader --no-inte
 echo "→ Building CSS/JS"
 npm ci --silent
 npm run build --silent
-cp -R public/build "$STAGE/public/build"
+rm -rf "$STAGE/public/build" && cp -R public/build "$STAGE/public/build"
 
 # Not needed on the server.
 rm -rf "$STAGE/tests" "$STAGE/node_modules" "$STAGE/.github" "$STAGE/phpunit.xml" \
