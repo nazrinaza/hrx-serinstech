@@ -84,12 +84,12 @@ composer -V
 - **`php -v` shows an older version:** use the full path **`/opt/cpanel/ea-php83/root/usr/bin/php`** wherever this guide says `php`, including in the cron job in step 9. Some CloudLinux hosts use `/opt/alt/php83/usr/bin/php` instead.
 
   The deploy script finds PHP 8.3 by itself, so this only matters for the commands you type.
-- **`composer -V` says "command not found":** install Composer into your home folder:
+- **Install Composer into your home folder.** Do this even if `composer -V` works in Terminal, because cPanel's deploy runner often can't see the system Composer:
   ```bash
   cd ~
-  curl -sS https://getcomposer.org/installer | php
+  curl -sS https://getcomposer.org/installer | /opt/alt/php83/usr/bin/php
   ```
-  This creates `~/composer.phar`, and the deploy script will find it automatically.
+  This creates `~/composer.phar`, which the deploy script finds automatically. If your server uses EasyApache PHP instead of `/opt/alt/...`, use `/opt/cpanel/ea-php83/root/usr/bin/php`.
 
 ## 5. Clone the repository
 
@@ -215,7 +215,7 @@ The "HEAD Commit" box shows which commit is live.
 | **Deploy button is greyed out** | The Git copy in `~/repositories/hrx-serinstech` has local changes. Never edit files there. In Terminal, run `cd ~/repositories/hrx-serinstech && git status`. To throw local changes away, run `git checkout -- . && git clean -fd`. |
 | **Deploy did nothing / not sure if it worked** | Read the newest `~/.cpanel/logs/vc_…_git_deploy.log`. It should end with `[hrx-deploy] Done: …`. |
 | **"PHP 8.3 or newer not found"** (deploy log) | Find your PHP 8.3 path with `ls /opt/cpanel/ /opt/alt/`. Then edit `.cpanel.yml` (on your Mac, then commit and push) so the task line reads `- HRX_PHP=/path/to/php /bin/bash deploy/cpanel-deploy.sh`. |
-| **"Composer not found"** (deploy log) | Redo step 4. |
+| **"Composer not found"** (deploy log) | Install `~/composer.phar` as in step 4, then click **Deploy HEAD Commit** again. |
 | **Composer "Allowed memory size exhausted"** | Ask your host to raise the PHP CLI `memory_limit` to 512M, or use the zip method below. |
 | **500 error / blank page** | Read `~/hrx/storage/logs/laravel-<date>.log`. The usual causes are a wrong `DB_*` value in `.env`, or forgetting to run `php artisan optimize` again after editing `.env`. |
 | **"Your Composer dependencies require PHP >= 8.3"** | The domain is using an older PHP version. Redo step 2. |

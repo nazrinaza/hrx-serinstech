@@ -6,10 +6,11 @@
 # Override the defaults with environment variables if needed:
 #   HRX_LIVE   live folder            (default: ~/hrx)
 #   HRX_PHP    PHP 8.3+ binary         (default: auto-detect)
-#   HRX_COMPOSER composer command      (default: composer in PATH, else ~/composer.phar)
+#   HRX_COMPOSER composer command      (default: ~/composer.phar, then the usual install paths)
 set -euo pipefail
 
-SRC="$(cd "$(dirname "$0")/.." && pwd)"
+case "$0" in */*) HERE="${0%/*}" ;; *) HERE=. ;; esac
+SRC="$(cd "$HERE/.." && pwd)"
 LIVE="${HRX_LIVE:-$HOME/hrx}"
 log() { echo "[hrx-deploy] $*"; }
 
@@ -28,12 +29,28 @@ PHP="$(find_php)" || { log "ERROR: PHP 8.3 or newer not found. Set HRX_PHP in .c
 log "PHP: $PHP ($("$PHP" -r 'echo PHP_VERSION;'))"
 
 # --- Find Composer. Put the chosen PHP first in PATH so `composer` (a `#!/usr/bin/env php` script) uses it.
-[[ "$PHP" == */* ]] && export PATH="$(dirname "$PHP"):$PATH"
+[[ "$PHP" == */* ]] && export PATH="${PHP%/*}:$PATH"
+# cPanel deploys run with a minimal PATH, so also look in the usual install locations.
+find_composer() {
+  local c
+  for c in "$HOME/composer.phar" "$HOME/bin/composer" "$HOME/.local/bin/composer" \
+           /opt/cpanel/composer/bin/composer /usr/local/bin/composer /usr/bin/composer \
+           "$(command -v composer 2>/dev/null || true)"; do
+    [[ -n "$c" && -f "$c" ]] && { echo "$c"; return 0; }
+  done
+  return 1
+}
 if [[ -n "${HRX_COMPOSER:-}" ]]; then COMPOSER=($HRX_COMPOSER)
-elif [[ -f "$HOME/composer.phar" ]]; then COMPOSER=("$PHP" "$HOME/composer.phar")
-elif command -v composer >/dev/null 2>&1; then COMPOSER=(composer)
-else log "ERROR: Composer not found. See 'Install Composer' in deploy/CPANEL-GUIDE.md."; exit 1
+elif C="$(find_composer)"; then
+  # A PHP file (composer.phar or `#!/usr/bin/env php`) runs with our PHP 8.3; a shell wrapper runs as is.
+  IFS= read -r FIRST < "$C" || true
+  if [[ "$FIRST" == *php* ]]; then COMPOSER=("$PHP" "$C"); else COMPOSER=("$C"); fi
+else
+  log "ERROR: Composer not found. Install it once in cPanel Terminal, then deploy again:"
+  log "  cd ~ && curl -sS https://getcomposer.org/installer | $PHP"
+  exit 1
 fi
+log "Composer: ${COMPOSER[*]}"
 
 [[ -f "$SRC/public/build/manifest.json" ]] || { log "ERROR: public/build is missing. Run 'npm run build' and commit it."; exit 1; }
 
